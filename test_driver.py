@@ -60,7 +60,8 @@ def run_test():
                 dist_to_0_90 = []
                 all_length_history = []
                 all_explored_rate_history = []
-                all_overlap_ratio_history =[]
+                all_overlap_ratio_history = []
+                collision_count = []
 
                 job_list = []
                 for i, meta_agent in enumerate(meta_agents):
@@ -82,7 +83,8 @@ def run_test():
                             all_length_history.extend(metrics['length_history'])
                             all_explored_rate_history.extend(metrics['explored_rate_history'])
                             all_overlap_ratio_history.extend(metrics['overlap_ratio_history'])
-
+                            #  collision_count.append(metrics['collision_count'])
+                            
                             if curr_test < NUM_TEST:
                                 job_list.append(meta_agents[info['id']].job.remote(weights, curr_test, n_agent, fov, sensor_range, utility_range))
                                 curr_test += 1
@@ -102,6 +104,7 @@ def run_test():
                     print('|#Std distance to {} explored:'.format(INITIAL_EXPLORED_RATE), np.array(dist_to_0_90).std())
                     print('|#Average overlap ratio:', np.array(all_overlap_ratio_history).mean())
                     print('|#Std overlap ratio:', np.array(all_overlap_ratio_history).std())
+                    # print('|#Number of Collision:', np.array(collision_count).mean())
 
                 except KeyboardInterrupt:
                     print("CTRL_C pressed. Killing remote workers")

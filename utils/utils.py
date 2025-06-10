@@ -211,14 +211,33 @@ def make_gif(path, n, frame_files, rate):
     for filename in frame_files[:-1]:
         os.remove(filename)
 
-def make_gif_test(path, n, frame_files, rate, n_agents, fov, sensor_range):
-    with imageio.get_writer('{}/{}_{}_{}_{}_explored_rate_{:.4g}.gif'.format(path, n, n_agents, fov, sensor_range, rate), mode='I', duration=1) as writer:
+def make_gif_test(path, n, frame_files, rate, n_agents, fov, sensor_range, collision_count=0):
+    gif_name = '{}_{}_{}_{}_explored_rate_{:.4g}_collisions_{}'.format(n, n_agents, fov, sensor_range, rate, collision_count)
+    gif_path = '{}/{}.gif'.format(path, gif_name)
+    
+    with imageio.get_writer(gif_path, mode='I', duration=1) as writer:
         for frame in frame_files:
             image = imageio.imread(frame)
             writer.append_data(image)
     print('gif complete\n')
-    for filename in frame_files[:-1]:
-        os.remove(filename)
+    
+    # Create folder with same name as GIF and copy images there
+    images_folder = '{}/{}'.format(path, gif_name)
+    if not os.path.exists(images_folder):
+        os.makedirs(images_folder)
+    
+    # Copy images to the folder instead of deleting them
+    import shutil
+    for i, filename in enumerate(frame_files):
+        if os.path.exists(filename):
+            base_name = os.path.basename(filename)
+            new_path = os.path.join(images_folder, f"frame_{i:04d}_{base_name}")
+            shutil.copy2(filename, new_path)
+    
+    # Still remove the original temporary files to clean up
+    for filename in frame_files:
+        if os.path.exists(filename):
+            os.remove(filename)
 
 
 class MapInfo:

@@ -37,6 +37,9 @@ class TestWorker:
                            range(self.n_agents)]
 
         self.perf_metrics = dict()
+        self.collision_count = 0
+        self.collision_threshold = 1.0
+        self.collision_locations = []
 
     def run_episode(self):
         done = False
@@ -57,6 +60,7 @@ class TestWorker:
 
         setpoints = [[] for _ in range(self.n_agents)]
         headings = [[] for _ in range(self.n_agents)]
+        collision_history = []
 
 
         for i in range(MAX_EPISODE_STEP):
@@ -131,6 +135,12 @@ class TestWorker:
                     robot_location_sim_step.append(robot_locations_sim[q][l])
                     robot_heading_sim_step.append(robot_headings_sim[q][l])
                 
+                step_collisions, step_collision_locations = self.check_robot_collisions(robot_location_sim_step)
+                self.collision_count += step_collisions
+                self.collision_locations.extend(step_collision_locations)
+                collision_history.append(self.collision_count)
+                
+                
                 if self.save_image:
                     num_frame = i * self.sim_steps + l
                     self.plot_local_env_sim(num_frame, robot_location_sim_step, robot_heading_sim_step)
@@ -170,11 +180,14 @@ class TestWorker:
         self.perf_metrics['length_history'] = length_history
         self.perf_metrics['explored_rate_history'] = explored_rate_history
         self.perf_metrics['overlap_ratio_history'] = overlap_ratio_history
+        self.perf_metrics['collision_count'] = self.collision_count
+        self.perf_metrics['collision_history'] = collision_history
+        print("self.perf_metrics['collision_count'] ", self.perf_metrics['collision_count'])
     
         # Save gif
         if self.save_image:
             pass
-            make_gif_test(gifs_path, self.global_step, self.env.frame_files, self.env.explored_rate, self.n_agents, self.fov, self.sensor_range)
+            make_gif_test(gifs_path, self.global_step, self.env.frame_files, self.env.explored_rate, self.n_agents, self.fov, self.sensor_range, self.collision_count)
 
     def smooth_heading_change(self, prev_heading, heading, steps=10):
         prev_heading = prev_heading % 360
@@ -286,7 +299,14 @@ class TestWorker:
             frontiers_cell = get_cell_position_from_coords(np.array(list(global_frontiers)), self.env.belief_info) #shape is (2,)
             if len(global_frontiers) == 1:
                 frontiers_cell = frontiers_cell.reshape(1,2)
-            plt.scatter(frontiers_cell[:, 0], frontiers_cell[:, 1], s=1, c='r')       
+            plt.scatter(frontiers_cell[:, 0], frontiers_cell[:, 1], s=1, c='r')
+
+        # Plot collision locations as squares
+        if len(self.collision_locations) > 0:
+            collision_locations_array = np.array(self.collision_locations)
+            plt.scatter(collision_locations_array[:, 0], collision_locations_array[:, 1], 
+                       s=50, marker='s', edgecolors='cyan', linewidth=1, 
+                       facecolors='none', zorder=15)
 
         plt.subplot(1, 2, 2)
         plt.imshow(self.env.robot_belief, cmap='gray')
@@ -322,11 +342,19 @@ class TestWorker:
         if len(global_frontiers) != 0:
             plt.scatter(frontiers_cell[:, 0], frontiers_cell[:, 1], s=3, c='r')
 
+        # Plot collision locations as squares
+        if len(self.collision_locations) > 0:
+            collision_locations_array = np.array(self.collision_locations)
+            plt.scatter(collision_locations_array[:, 0], collision_locations_array[:, 1], 
+                       s=50, marker='s', edgecolors='cyan', linewidth=1, 
+                       label='Collisions', facecolors='none', zorder=15)
+
         plt.axis('off')
         robot_headings = [f"{color_name[robot.id%4]}- {robot.heading:.0f}°" for robot in self.robot_list]
-        plt.suptitle('Explored ratio: {:.4g}  Travel distance: {:.4g}\nRobot Headings: {}'.format(
+        plt.suptitle('Explored ratio: {:.4g}  Travel distance: {:.4g}  Collisions: {}\nRobot Headings: {}'.format(
             self.env.explored_rate,
             max([robot.travel_dist for robot in self.robot_list]),
+            self.collision_count,
             ', '.join(robot_headings)
         ), fontweight='bold', fontsize=10)
         plt.tight_layout()
@@ -338,6 +366,21 @@ class TestWorker:
     def correct_heading(self, heading):
         heading = abs(((heading + 90) % 360) - 360)
         return heading
+    
+    def check_robot_collisions(self, robot_locations):
+        collisions = 0
+        collision_locations = []
+        for i in range(len(robot_locations)):
+            for j in range(i + 1, len(robot_locations)):
+                robot_i_coords = get_coords_from_cell_position(robot_locations[i], self.env.belief_info)
+                robot_j_coords = get_coords_from_cell_position(robot_locations[j], self.env.belief_info)
+                distance = np.linalg.norm(robot_i_coords - robot_j_coords)
+                if distance < self.collision_threshold:
+                    collisions += 1
+                    # Record the midpoint of collision as collision location
+                    collision_point = (robot_locations[i] + robot_locations[j]) / 2
+                    collision_locations.append(collision_point)
+        return collisions, collision_locations
 
 if __name__ == '__main__':
     import torch
