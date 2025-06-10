@@ -1,0 +1,32 @@
+name: marvel
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - scikit-image
+  - scipy
+  - pytorch  # CPU version
+  - torchvision
+  - torchaudio
+  - tensorboard
+  - gymnasium
+  - fastapi
+  - shapely
+  - uvicorn
+  - aiohttp
+  - pip:
+      - wandb
+      - ray==2.44.0
+      - ffmpeg-python
+      - python-dotenv
+      - future
+      - httptools
+      - uvloop
+      - websockets
+      - py-spy

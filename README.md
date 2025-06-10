@@ -16,7 +16,12 @@ MARVEL is a neural framework that leverages graph attention networks, together w
 Use conda to setup your environment:
 
 ```bash
+# Linux
 conda env create -f marvel.yml
+
+# Mac (Apple Silicon)
+conda env create -f marvel_mac.yml
+
 conda activate marvel
 ```
 
