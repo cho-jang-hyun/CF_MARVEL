@@ -182,7 +182,6 @@ class TestWorker:
         self.perf_metrics['overlap_ratio_history'] = overlap_ratio_history
         self.perf_metrics['collision_count'] = self.collision_count
         self.perf_metrics['collision_history'] = collision_history
-        print("self.perf_metrics['collision_count'] ", self.perf_metrics['collision_count'])
     
         # Save gif
         if self.save_image:
@@ -351,12 +350,12 @@ class TestWorker:
 
         plt.axis('off')
         robot_headings = [f"{color_name[robot.id%4]}- {robot.heading:.0f}°" for robot in self.robot_list]
-        plt.suptitle('Explored ratio: {:.4g}  Travel distance: {:.4g}  Collisions: {}\nRobot Headings: {}'.format(
+        plt.suptitle('MARVEL \nExplored ratio: {:.4g}  Travel distance: {:.4g}  \nCollisions: {}\nRobot Headings: {}'.format(
             self.env.explored_rate,
             max([robot.travel_dist for robot in self.robot_list]),
             self.collision_count,
             ', '.join(robot_headings)
-        ), fontweight='bold', fontsize=10)
+        ), fontweight='bold', fontsize=8)
         plt.tight_layout()
         plt.savefig('{}/{}_{}_{}_{}_{}_samples.png'.format(gifs_path, self.global_step, step, self.n_agents, self.fov, self.sensor_range), dpi=150)
         plt.close()
