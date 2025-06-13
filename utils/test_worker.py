@@ -260,6 +260,7 @@ class TestWorker:
         overlap_ratio = total_overlap_area / total_sensing_area  
         
         return overlap_ratio
+    
     def plot_local_env_sim(self, step, robot_locations, robot_headings):
         plt.switch_backend('agg')
         plt.figure(figsize=(6, 3))
@@ -306,6 +307,12 @@ class TestWorker:
             plt.scatter(collision_locations_array[:, 0], collision_locations_array[:, 1], 
                        s=50, marker='s', edgecolors='cyan', linewidth=1, 
                        facecolors='none', zorder=15)
+        
+        # Plot line of sight between robots
+        line_segments = self.draw_robot_line_of_sight(robot_locations, robot_headings)
+        for start_loc, end_loc, observer_id, target_id in line_segments:
+            plt.plot([start_loc[0], end_loc[0]], [start_loc[1], end_loc[1]], 
+                    color='orange', linewidth=2, alpha=0.7, zorder=12)
 
         plt.subplot(1, 2, 2)
         plt.imshow(self.env.robot_belief, cmap='gray')
@@ -347,6 +354,12 @@ class TestWorker:
             plt.scatter(collision_locations_array[:, 0], collision_locations_array[:, 1], 
                        s=50, marker='s', edgecolors='cyan', linewidth=1, 
                        label='Collisions', facecolors='none', zorder=15)
+        
+        # Plot line of sight between robots
+        line_segments = self.draw_robot_line_of_sight(robot_locations, robot_headings)
+        for start_loc, end_loc, observer_id, target_id in line_segments:
+            plt.plot([start_loc[0], end_loc[0]], [start_loc[1], end_loc[1]], 
+                    color='orange', linewidth=2, alpha=0.7, zorder=12)
 
         plt.axis('off')
         robot_headings = [f"{color_name[robot.id%4]}- {robot.heading:.0f}°" for robot in self.robot_list]
@@ -380,6 +393,79 @@ class TestWorker:
                     collision_point = (robot_locations[i] + robot_locations[j]) / 2
                     collision_locations.append(collision_point)
         return collisions, collision_locations
+    
+    def draw_robot_line_of_sight(self, robot_locations, robot_headings):
+        line_segments = []
+        for i, (location_i, heading_i) in enumerate(zip(robot_locations, robot_headings)):
+            for j, (location_j, heading_j) in enumerate(zip(robot_locations, robot_headings)):
+                if i != j:
+                    if self.is_robot_in_fov(location_i, heading_i, location_j):
+                        line_segments.append((location_i, location_j, i, j))
+        return line_segments
+    
+    def is_robot_in_fov(self, observer_location, observer_heading, target_location):
+        dx = target_location[0] - observer_location[0]
+        dy = target_location[1] - observer_location[1]
+        distance = np.sqrt(dx**2 + dy**2)
+        
+        if distance == 0:
+            return False
+        
+        angle_to_target = np.degrees(np.arctan2(dy, dx))
+        angle_to_target = (angle_to_target + 360) % 360
+        
+        start_angle = (observer_heading - self.fov / 2 + 360) % 360
+        end_angle = (observer_heading + self.fov / 2) % 360
+        
+        in_fov_angle = False
+        if start_angle <= end_angle:
+            in_fov_angle = start_angle <= angle_to_target <= end_angle
+        else:
+            in_fov_angle = angle_to_target >= start_angle or angle_to_target <= end_angle
+        
+        if not in_fov_angle:
+            return False
+        
+        return self.is_line_of_sight_clear(observer_location, target_location)
+    
+    def is_line_of_sight_clear(self, start_location, end_location):
+        x0, y0 = int(start_location[0]), int(start_location[1])
+        x1, y1 = int(end_location[0]), int(end_location[1])
+        
+        points = self.bresenham_line(x0, y0, x1, y1)
+        
+        for x, y in points:
+            if (0 <= y < self.env.robot_belief.shape[0] and 
+                0 <= x < self.env.robot_belief.shape[1]):
+                cell_value = self.env.robot_belief[y, x]
+                if cell_value != 255:
+                    return False
+            else:
+                return False
+        return True
+    
+    def bresenham_line(self, x0, y0, x1, y1):
+        points = []
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        sx = 1 if x0 < x1 else -1
+        sy = 1 if y0 < y1 else -1
+        err = dx - dy
+        
+        x, y = x0, y0
+        while True:
+            points.append((x, y))
+            if x == x1 and y == y1:
+                break
+            e2 = 2 * err
+            if e2 > -dy:
+                err -= dy
+                x += sx
+            if e2 < dx:
+                err += dx
+                y += sy
+        
+        return points
 
 if __name__ == '__main__':
     import torch
