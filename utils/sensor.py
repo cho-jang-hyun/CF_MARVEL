@@ -103,10 +103,16 @@ def fov_sweep(start_angle, end_angle, increment):
     return angles_in_radians
 
 def sensor_work_heading(robot_position, sensor_range, robot_belief, ground_truth, heading, fov):
-
     sensor_angle_inc = 0.5
-    x0 = robot_position[0]
-    y0 = robot_position[1]
+
+    # Handle both 1D and 2D input arrays
+    if len(robot_position.shape) == 1:
+        x0 = robot_position[0]
+        y0 = robot_position[1]
+    else:
+        x0 = robot_position[0, 0]
+        y0 = robot_position[0, 1]
+    
     start_angle, end_angle = calculate_fov_boundaries(heading, fov)
     sweep_angles = fov_sweep(start_angle, end_angle, sensor_angle_inc)
 
